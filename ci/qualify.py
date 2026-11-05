@@ -128,7 +128,7 @@ st = {l.split(":")[0]: l.split(":")[1].strip() for l in open("/proc/self/status"
 print(json.dumps({"internet": tcp("1.1.1.1", 443), "imds": tcp("169.254.169.254", 80), "wireserver": tcp("168.63.129.16", 80),
   "runner_via_bridge": {p: tcp("172.31.250.1", p) for p in (22, 80, 443, 2375, 2376)}, "default_route": gw,
   "docker_socket": os.path.exists("/var/run/docker.sock"), "cap_eff": st.get("CapEff"), "no_new_privs": st.get("NoNewPrivs"),
-  "env": sorted(os.environ), "mounts": [l.split()[1] for l in open("/proc/mounts") if l.split()[2] in ("ext4", "xfs", "overlay", "nfs", "9p")]}))
+  "env": sorted(os.environ), "generated_files_are_files": {f: os.path.isfile(f) and not os.path.islink(f) for f in ("/etc/resolv.conf", "/etc/hostname", "/etc/hosts")}, "mounts": [l.split()[1] for l in open("/proc/mounts") if l.split()[2] in ("ext4", "xfs", "overlay", "nfs", "9p")]}))
 '''
     r = sh(["docker", "run", "--rm", *HARDEN, "--read-only", "--memory", "128m", "-v", f"{DATA}:/probe-data",
             CLIENT, "python", "-c", code], check=False)
@@ -142,7 +142,10 @@ print(json.dumps({"internet": tcp("1.1.1.1", 443), "imds": tcp("169.254.169.254"
         "all capabilities dropped": p.get("cap_eff") == "0000000000000000",
         "no-new-privileges": p.get("no_new_privs") == "1",
         "no runner credentials in env": not any(k.startswith(("GITHUB_", "ACTIONS_", "RUNNER_")) for k in p.get("env", [])),
-        "only the capped data mount": set(p.get("mounts", ["?"])) <= {"/", "/probe-data"},
+        # Docker bind-mounts three generated, per-container files into every container; nothing else is allowed.
+        "only the capped data mount (+ Docker's per-container resolv.conf/hostname/hosts)":
+            set(p.get("mounts", ["?"])) <= {"/", "/probe-data", "/etc/resolv.conf", "/etc/hostname", "/etc/hosts"}
+            and all(p.get("generated_files_are_files", {}).values() or [False]),
     }
     evidence("probe.json", {"observed": p, "gates": gates, "dryRun": a.dry_run})
     for k, v in gates.items(): print(("PASS " if v else "FAIL ") + k)
