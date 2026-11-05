@@ -103,7 +103,8 @@ class Peaks(threading.Thread):
 
 
 def run_app(image):
-    cmd = ["docker", "run", "-d", "--name", "app", "--network-alias", "app", *HARDEN,
+    # --init: same as POOF on macOS, so the app gets stop signals instead of being force-killed as PID 1.
+    cmd = ["docker", "run", "-d", "--init", "--name", "app", "--network-alias", "app", *HARDEN,
            "--memory", spec["memory"], "--memory-swap", spec["memory"], "--cpus", "2"]
     for c in spec.get("capAdd", []): cmd += ["--cap-add", c]
     if spec.get("dataPath"): cmd += ["-v", f"{DATA}:{spec['dataPath']}"]
