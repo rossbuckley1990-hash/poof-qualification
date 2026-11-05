@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>POOF Notes</title>
+<style>
+  :root {
+    --bg: #fbfbfa; --side: #f3f2ef; --ink: #1d1d1f; --muted: #86868b;
+    --line: #e4e2dd; --accent: #e8590c; --sel: #ffffff; --danger: #d70015;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #1c1c1e; --side: #232325; --ink: #f2f2f4; --muted: #8e8e93;
+            --line: #333336; --accent: #ff8a3d; --sel: #2c2c2f; --danger: #ff6961; }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { font: 14px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+         color: var(--ink); background: var(--bg); display: flex; -webkit-font-smoothing: antialiased; }
+  aside { width: 280px; min-width: 220px; background: var(--side); border-right: 1px solid var(--line);
+          display: flex; flex-direction: column; }
+  .bar { display: flex; align-items: center; justify-content: space-between; padding: 14px 14px 10px; }
+  .bar h1 { font-size: 13px; font-weight: 600; letter-spacing: .02em; margin: 0; color: var(--muted); text-transform: uppercase; }
+  button { font: inherit; border: 0; border-radius: 7px; cursor: pointer; }
+  #new { background: var(--accent); color: #fff; padding: 5px 11px; font-weight: 600; }
+  #new:focus-visible, .item:focus-visible, #del:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #list { list-style: none; margin: 0; padding: 0 8px 12px; overflow-y: auto; flex: 1; }
+  .item { padding: 9px 10px; border-radius: 8px; cursor: pointer; margin-bottom: 2px; }
+  .item:hover { background: color-mix(in srgb, var(--sel) 60%, transparent); }
+  .item.active { background: var(--sel); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+  .item .t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item .s { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .meta { display: flex; align-items: center; justify-content: space-between; padding: 14px 28px 0; color: var(--muted); font-size: 12px; min-height: 36px; }
+  #del { background: transparent; color: var(--danger); padding: 4px 8px; }
+  #del:hover { background: color-mix(in srgb, var(--danger) 12%, transparent); }
+  #title { font: 600 26px/1.2 -apple-system, "SF Pro Display", system-ui, sans-serif; border: 0; outline: 0;
+           background: transparent; color: var(--ink); padding: 10px 28px 6px; width: 100%; }
+  #body { flex: 1; border: 0; outline: 0; resize: none; background: transparent; color: var(--ink);
+          font: 15px/1.6 -apple-system, system-ui, sans-serif; padding: 6px 28px 28px; width: 100%; }
+  .empty { margin: auto; text-align: center; color: var(--muted); }
+  .empty b { display: block; font-size: 17px; color: var(--ink); margin-bottom: 4px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<aside>
+  <div class="bar"><h1>Notes</h1><button id="new" title="New note (⌘N)">New</button></div>
+  <ul id="list" aria-label="Notes"></ul>
+</aside>
+<main>
+  <div id="editor" hidden style="display:flex;flex-direction:column;flex:1">
+    <div class="meta"><span id="status"></span><button id="del">Delete</button></div>
+    <input id="title" placeholder="Title" aria-label="Title">
+    <textarea id="body" placeholder="Start writing…" aria-label="Note"></textarea>
+  </div>
+  <div id="empty" class="empty"><b>No note selected</b>Create one with New.</div>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+let notes = [], current = null, timer = null;
+
+async function api(method, path, body) {
+  const r = await fetch(path, { method, headers: { "Content-Type": "application/json" },
+                                body: body ? JSON.stringify(body) : undefined });
+  if (!r.ok) throw new Error(method + " " + path + " → " + r.status);
+  return r.json();
+}
+function when(ts) { return new Date(ts * 1000).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }); }
+
+function render() {
+  const ul = $("#list"); ul.innerHTML = "";
+  for (const n of notes) {
+    const li = document.createElement("li");
+    li.className = "item" + (current && n.id === current.id ? " active" : "");
+    li.tabIndex = 0; li.dataset.id = n.id;
+    const t = document.createElement("div"); t.className = "t"; t.textContent = n.title || "Untitled";
+    const s = document.createElement("div"); s.className = "s"; s.textContent = n.body.split("\n")[0] || when(n.updated_at);
+    li.append(t, s);
+    li.onclick = () => select(n.id);
+    li.onkeydown = (e) => { if (e.key === "Enter") select(n.id); };
+    ul.append(li);
+  }
+  $("#editor").hidden = !current; $("#empty").hidden = !!current;
+  if (current) $("#status").textContent = "Edited " + when(current.updated_at);
+}
+function select(id) {
+  flush();
+  current = notes.find((n) => n.id === id) || null;
+  if (current) { $("#title").value = current.title; $("#body").value = current.body; }
+  render();
+}
+async function load() { notes = await api("GET", "/api/notes"); render(); }
+
+async function save() {
+  if (!current) return;
+  const updated = await api("PUT", "/api/notes/" + current.id, { title: $("#title").value, body: $("#body").value });
+  Object.assign(current, updated);
+  notes.sort((a, b) => b.updated_at - a.updated_at);
+  render();
+}
+function schedule() { clearTimeout(timer); $("#status").textContent = "Saving…"; timer = setTimeout(save, 350); }
+function flush() { if (timer) { clearTimeout(timer); timer = null; save(); } }
+
+$("#new").onclick = async () => {
+  flush();
+  const n = await api("POST", "/api/notes", { title: "", body: "" });
+  notes.unshift(n); select(n.id); $("#title").focus();
+};
+$("#del").onclick = async () => {
+  if (!current || !confirm("Delete this note?")) return;
+  await api("DELETE", "/api/notes/" + current.id);
+  notes = notes.filter((n) => n.id !== current.id); current = null; render();
+};
+$("#title").oninput = schedule; $("#body").oninput = schedule;
+$("#title").onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); $("#body").focus(); } };
+document.addEventListener("keydown", (e) => { if (e.metaKey && e.key === "n") { e.preventDefault(); $("#new").click(); } });
+window.addEventListener("beforeunload", flush);
+load().catch((e) => { $("#empty").innerHTML = "<b>Couldn’t load notes</b>" + e.message; });
+</script>
+</body>
+</html>

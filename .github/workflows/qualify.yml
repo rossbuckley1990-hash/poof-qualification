@@ -1,0 +1,71 @@
+# Disposable Linux ARM64 qualification of ONE approved OCI app per run. Manual trigger only.
+# Results are Linux container qualification, not proof of POOF compatibility on macOS.
+name: Qualify OCI app (linux/arm64)
+
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: App to qualify (the first-party control always runs first)
+        required: true
+        type: choice
+        options: [control-notes, meilisearch, kanboard, excalidraw, stirling-pdf, actual-budget]
+
+# No token permissions by default; the job gets read access to this repository's contents only.
+permissions: {}
+
+concurrency:
+  group: qualify-${{ inputs.app }}
+  cancel-in-progress: false
+
+jobs:
+  qualify:
+    name: Qualify ${{ inputs.app }}
+    runs-on: ubuntu-24.04-arm          # GitHub-hosted, fresh VM per job, destroyed afterwards
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      APP: ${{ inputs.app }}            # choice input, passed via env (never interpolated into scripts)
+      POOFQ_DATA_MB: "2048"
+    steps:
+      - name: Check out (credentials not persisted)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install cosign (pinned release, checksum verified)
+        run: |
+          curl -fsSL -o cosign https://github.com/sigstore/cosign/releases/download/v3.1.4/cosign-linux-arm64
+          echo "ade83b7aac62e131cacfe96d958948b2150cc9efec46a570a2649b8e27dedad2  cosign" | sha256sum -c -
+          chmod +x cosign
+
+      - name: Lock down the runner before any untrusted image
+        timeout-minutes: 5
+        run: sudo ./ci/lockdown.sh
+
+      - name: Isolation gate (no untrusted image starts unless every check passes)
+        timeout-minutes: 5
+        run: python3 ci/qualify.py probe --out evidence
+
+      - name: First-party control through the same path
+        timeout-minutes: 10
+        run: python3 ci/qualify.py control --out evidence
+
+      - name: Qualify the selected app
+        if: env.APP != 'control-notes'
+        timeout-minutes: 15
+        run: python3 ci/qualify.py app "$APP" --out evidence
+
+      - name: Teardown and leftover audit
+        if: always()
+        run: sudo ./ci/teardown.sh evidence
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: qualification-${{ inputs.app }}-${{ github.run_id }}
+          path: evidence/
+          retention-days: 30
+          if-no-files-found: error

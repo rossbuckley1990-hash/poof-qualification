@@ -1,0 +1,54 @@
+{
+  "schema": "poof-qualification/1",
+  "note": "Functional checks are DRAFTS from upstream documentation; the first CI run confirms or corrects them. Capability allow-lists are the minimum believed necessary; a too-small list shows up as a failed start, which is itself a finding.",
+  "client": { "image": "docker.io/library/python@sha256:e6dae589c1c05976188fd3bd019afd091445fc533ed2ea29001beddc7368a9c8" },
+  "apps": {
+    "control-notes": {
+      "build": "control/notes", "port": 8080, "ready": "/healthz", "readyMode": "2xx", "dataPath": "/data", "dataMB": 512, "memory": "1g",
+      "capAdd": [],
+      "functional": [ { "method": "POST", "path": "/api/notes", "json": { "title": "q", "body": "{marker}" }, "expectStatus": 201 } ],
+      "persisted":  [ { "method": "GET", "path": "/api/notes", "expectContains": "{marker}" } ]
+    },
+    "meilisearch": {
+      "port": 7700, "ready": "/health", "readyMode": "2xx", "dataPath": "/meili_data", "dataMB": 2048, "memory": "1g",
+      "capAdd": [],
+      "functional": [
+        { "method": "POST", "path": "/indexes/poof/documents", "json": [ { "id": 1, "title": "{marker}" } ], "expectStatus": 202 },
+        { "method": "GET", "path": "/indexes/poof/documents/1", "expectContains": "{marker}", "retrySeconds": 20 }
+      ],
+      "persisted": [ { "method": "GET", "path": "/indexes/poof/documents/1", "expectContains": "{marker}", "retrySeconds": 20 } ]
+    },
+    "kanboard": {
+      "port": 80, "ready": "/healthcheck.php", "readyMode": "2xx", "dataPath": "/var/www/app/data", "dataMB": 512, "memory": "1g",
+      "capAdd": ["CHOWN", "SETUID", "SETGID", "NET_BIND_SERVICE", "DAC_OVERRIDE", "FOWNER"],
+      "functional": [ { "method": "POST", "path": "/jsonrpc.php", "basicAuth": "admin:admin",
+                        "json": { "jsonrpc": "2.0", "method": "createProject", "id": 1, "params": { "name": "{marker}" } }, "expectContains": "\"result\"" } ],
+      "persisted":  [ { "method": "POST", "path": "/jsonrpc.php", "basicAuth": "admin:admin",
+                        "json": { "jsonrpc": "2.0", "method": "getAllProjects", "id": 2 }, "expectContains": "{marker}" } ]
+    },
+    "excalidraw": {
+      "port": 80, "ready": "/", "readyMode": "2xx", "dataPath": null, "dataMB": 0, "memory": "512m",
+      "capAdd": ["CHOWN", "SETUID", "SETGID", "NET_BIND_SERVICE"],
+      "functional": [ { "method": "GET", "path": "/", "expectContains": "Excalidraw" } ],
+      "persisted":  [ { "method": "GET", "path": "/", "expectContains": "Excalidraw" } ],
+      "persistenceNote": "Drawings live in the browser's storage; server-side persistence is not applicable."
+    },
+    "stirling-pdf": {
+      "port": 8080, "ready": "/", "readyMode": "lt500", "dataPath": "/configs", "dataMB": 512, "memory": "2g",
+      "capAdd": ["CHOWN", "SETUID", "SETGID", "DAC_OVERRIDE", "FOWNER"],
+      "functional": [ { "method": "POST", "path": "/api/v1/general/rotate-pdf", "multipartPdf": "fileInput", "fields": { "angle": "90" },
+                        "expectStatus": 200, "expectBodyPrefix": "%PDF" } ],
+      "persisted":  [ { "method": "GET", "path": "/", "expectStatusBelow": 500 } ],
+      "persistenceNote": "Stateless tool; persistence check confirms the app restarts with its settings volume."
+    },
+    "actual-budget": {
+      "port": 5006, "ready": "/", "readyMode": "lt500", "dataPath": "/data", "dataMB": 512, "memory": "1g",
+      "capAdd": [],
+      "functional": [
+        { "method": "POST", "path": "/account/bootstrap", "json": { "password": "{password}" }, "expectContains": "ok" },
+        { "method": "POST", "path": "/account/login", "json": { "password": "{password}" }, "expectContains": "token" }
+      ],
+      "persisted": [ { "method": "POST", "path": "/account/login", "json": { "password": "{password}" }, "expectContains": "token" } ]
+    }
+  }
+}

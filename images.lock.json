@@ -1,0 +1,70 @@
+{
+ "pinnedAtUTC": "2026-11-05T22:44:16Z",
+ "images": {
+  "meilisearch": {
+   "image": "docker.io/getmeili/meilisearch",
+   "tagAtPinTime": "latest",
+   "indexDigest": "sha256:b7ba431bf6f9b26cc86132798f3640964147a699cf23f026b74c6c05dbb1d60d",
+   "arm64ManifestDigest": "sha256:7f04665b09c9ec91a1b72acbbf14a5046df4c3d358320e8bbb4deb9d054e3e1b",
+   "license": "MIT core + BUSL-1.1 (EE parts)",
+   "source": "https://github.com/meilisearch/meilisearch",
+   "provenance": {
+    "cosignSignatureTag": false,
+    "buildkitAttestationManifests": 2,
+    "status": "unsigned build attestation only \u2014 NOT a publisher signature"
+   }
+  },
+  "kanboard": {
+   "image": "docker.io/kanboard/kanboard",
+   "tagAtPinTime": "latest",
+   "indexDigest": "sha256:637989624e5362af2b97bfb4be1936fb6b111ea7cbdffea0ae8bd3068dc84125",
+   "arm64ManifestDigest": "sha256:f4af619ed89af3344e4e16d2eb8c1e5714497f13605a6d347d4f3517f81c159b",
+   "license": "MIT",
+   "source": "https://github.com/kanboard/kanboard",
+   "provenance": {
+    "cosignSignatureTag": false,
+    "buildkitAttestationManifests": 4,
+    "status": "unsigned build attestation only \u2014 NOT a publisher signature"
+   }
+  },
+  "excalidraw": {
+   "image": "docker.io/excalidraw/excalidraw",
+   "tagAtPinTime": "latest",
+   "indexDigest": "sha256:f7ee194addd607bf831d2af0f0a34463dd4225e426cf35199ef0b12a803398e9",
+   "arm64ManifestDigest": "sha256:0faa2324e70d2331952550c0f29ea20af63ffcfd146fbb2ffd5bacdc7f8d8a6b",
+   "license": "MIT",
+   "source": "https://github.com/excalidraw/excalidraw",
+   "provenance": {
+    "cosignSignatureTag": false,
+    "buildkitAttestationManifests": 3,
+    "status": "unsigned build attestation only \u2014 NOT a publisher signature"
+   }
+  },
+  "stirling-pdf": {
+   "image": "docker.io/stirlingtools/stirling-pdf",
+   "tagAtPinTime": "latest",
+   "indexDigest": "sha256:ed7b1775c6706b5e5ea24fa6155f078eff1027bd35a17d21834e4407036025e6",
+   "arm64ManifestDigest": "sha256:54ad3cdf4ae872ebb5701178b35711a4167b293f649afb493523b31a71ff41f7",
+   "license": "MIT + proprietary app/proprietary/",
+   "source": "https://github.com/Stirling-Tools/Stirling-PDF",
+   "provenance": {
+    "cosignSignatureTag": true,
+    "buildkitAttestationManifests": 2,
+    "status": "signed (verify in CI)"
+   }
+  },
+  "actual-budget": {
+   "image": "docker.io/actualbudget/actual-server",
+   "tagAtPinTime": "latest",
+   "indexDigest": "sha256:06cf186569cf58d93e12659ff1a517b65b5b0ebee7050a3991d4bd8a1d398da6",
+   "arm64ManifestDigest": "sha256:c3ba5b1350dfa0fe18f451f735f9f3f675505e1233ac90c9ae6ee5ae9808758e",
+   "license": "MIT",
+   "source": "https://github.com/actualbudget/actual",
+   "provenance": {
+    "cosignSignatureTag": false,
+    "buildkitAttestationManifests": 2,
+    "status": "unsigned build attestation only \u2014 NOT a publisher signature"
+   }
+  }
+ }
+}
