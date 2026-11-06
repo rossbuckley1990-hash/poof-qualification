@@ -65,6 +65,19 @@
     "buildkitAttestationManifests": 2,
     "status": "unsigned build attestation only \u2014 NOT a publisher signature"
    }
+  },
+  "cyberchef": {
+   "image": "ghcr.io/gchq/cyberchef",
+   "tagAtPinTime": "11.5.0",
+   "indexDigest": "sha256:f04a39926344faf8e4cbbc8c92fb125d2b466f9be62db09aff23c7c406101a51",
+   "arm64ManifestDigest": "sha256:8bbc0978679ef94183450433fdcca64215cad14cfcc22c9af042c282b273cfe4",
+   "license": "Apache-2.0",
+   "source": "https://github.com/gchq/CyberChef",
+   "provenance": {
+    "cosignSignatureTag": false,
+    "buildkitAttestationManifests": 3,
+    "status": "unsigned build attestation only \u2014 NOT a publisher signature"
+   }
   }
  }
 }

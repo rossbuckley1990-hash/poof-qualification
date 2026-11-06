@@ -49,6 +49,13 @@
         { "method": "POST", "path": "/account/login", "json": { "password": "{password}" }, "expectContains": "token" }
       ],
       "persisted": [ { "method": "POST", "path": "/account/login", "json": { "password": "{password}" }, "expectContains": "token" } ]
+    },
+    "cyberchef": {
+      "port": 8080, "ready": "/", "readyMode": "2xx", "dataPath": null, "dataMB": 0, "memory": "256m",
+      "capAdd": [],
+      "functional": [ { "method": "GET", "path": "/", "expectContains": "CyberChef" } ],
+      "persisted": [ { "method": "GET", "path": "/", "expectContains": "CyberChef" } ],
+      "persistenceNote": "Static site: all work happens in the browser; nothing is stored server-side."
     }
   }
 }

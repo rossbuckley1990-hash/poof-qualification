@@ -9,7 +9,7 @@ on:
         description: App to qualify (the first-party control always runs first)
         required: true
         type: choice
-        options: [control-notes, meilisearch, kanboard, excalidraw, stirling-pdf, actual-budget]
+        options: [control-notes, meilisearch, kanboard, excalidraw, stirling-pdf, actual-budget, cyberchef]
 
 # No token permissions by default; the job gets read access to this repository's contents only.
 permissions: {}
