@@ -8,7 +8,7 @@
 
 Results are Linux container qualification only. They do NOT prove POOF compatibility on macOS.
 """
-import argparse, json, os, secrets, shlex, subprocess, sys, threading, time, uuid
+import argparse, json, os, re, secrets, shlex, subprocess, sys, threading, time, uuid
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -44,7 +44,24 @@ def sh(cmd, check=True, timeout=600, capture=True):
 CLIENT_CODE = r'''
 import base64, json, sys, time, urllib.request
 host, steps = sys.argv[1], json.loads(sys.argv[2])
-PDF = b"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj 3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n"
+def make_pdf(text):
+    """A small but valid one-page PDF (real xref table) with one line of Helvetica text, so OCR and redaction
+    have something to work on and strict parsers accept it."""
+    stream = f"BT /F1 18 Tf 40 120 Td ({text}) Tj ET".encode()
+    objs = [b"<</Type/Catalog/Pages 2 0 R>>", b"<</Type/Pages/Kids[3 0 R]/Count 1>>",
+            b"<</Type/Page/Parent 2 0 R/MediaBox[0 0 400 200]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>",
+            b"<</Length %d>>stream\n" % len(stream) + stream + b"\nendstream",
+            b"<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>"]
+    out, offs = bytearray(b"%PDF-1.4\n"), []
+    for i, o in enumerate(objs, 1):
+        offs.append(len(out)); out += b"%d 0 obj\n" % i + o + b"\nendobj\n"
+    x = len(out)
+    out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objs) + 1) + b"".join(b"%010d 00000 n \n" % o for o in offs)
+    out += b"trailer<</Size %d/Root 1 0 R>>\nstartxref\n%d\n%%%%EOF\n" % (len(objs) + 1, x)
+    return bytes(out)
+
+
+PDF = make_pdf("POOF qualification 4111 1111 1111 1111")
 out = []
 for s in steps:
     deadline = time.time() + s.get("retrySeconds", 0)
@@ -107,6 +124,11 @@ def run_app(image):
     cmd = ["docker", "run", "-d", "--init", "--name", "app", "--network-alias", "app", *HARDEN,
            "--memory", spec["memory"], "--memory-swap", spec["memory"], "--cpus", "2"]
     for c in spec.get("capAdd", []): cmd += ["--cap-add", c]
+    # Per-app settings (e.g. turning a login wall off). Strictly validated: no option or shell injection.
+    for k, v in sorted(spec.get("env", {}).items()):
+        if not re.fullmatch(r"[A-Z_][A-Z0-9_]{0,63}", k) or not re.fullmatch(r"[A-Za-z0-9._:/-]{0,128}", str(v)):
+            raise RuntimeError(f"refusing env setting {k!r}")
+        cmd += ["-e", f"{k}={v}"]
     if spec.get("dataPath"): cmd += ["-v", f"{DATA}:{spec['dataPath']}"]
     sh(cmd + [image])
 
@@ -179,10 +201,15 @@ try:
                            "os": info.get("Os"), "sizeBytes": info.get("Size"), "provenance": lock["provenance"]}
         if not a.dry_run and (info.get("Architecture") != "arm64" or lock["indexDigest"] not in " ".join(info.get("RepoDigests") or [])):
             raise RuntimeError("pulled image is not the pinned linux/arm64 digest")
-        if lock["provenance"]["cosignSignatureTag"]:
+        # Keyless (GitHub OIDC) signatures are verified here. A signature made with a publisher-held key can only be
+        # verified with that publisher's public key; if none is published it is recorded as unverifiable.
+        if lock["provenance"].get("signing") == "keyless":
             v = sh(["./cosign", "verify", "--certificate-oidc-issuer", "https://token.actions.githubusercontent.com",
                     "--certificate-identity-regexp", "^https://github.com/" + lock["source"].split("github.com/")[1] + "/", image], check=False)
             result["image"]["cosignVerified"] = v.returncode == 0
+        elif lock["provenance"].get("cosignSignatureTag"):
+            result["image"]["cosignVerified"] = None
+            result["image"]["cosignNote"] = "signed with a publisher-held key; no public key published, so unverifiable"
     peaks.start()
     t0 = time.time(); run_app(image)
     ok, secs, res = wait_ready(); result["ready"] = {"ok": ok, "seconds": round(secs, 1), "detail": res}

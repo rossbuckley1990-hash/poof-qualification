@@ -34,12 +34,16 @@
       "persistenceNote": "Drawings live in the browser's storage; server-side persistence is not applicable."
     },
     "stirling-pdf": {
-      "port": 8080, "ready": "/", "readyMode": "lt500", "dataPath": "/configs", "dataMB": 512, "memory": "2g",
+      "port": 8080, "ready": "/", "readyMode": "lt500", "dataPath": "/configs", "dataMB": 512, "memory": "1g",
       "capAdd": ["CHOWN", "SETUID", "SETGID", "DAC_OVERRIDE", "FOWNER"],
-      "functional": [ { "method": "POST", "path": "/api/v1/general/rotate-pdf", "multipartPdf": "fileInput", "fields": { "angle": "90" },
-                        "expectStatus": 200, "expectBodyPrefix": "%PDF" } ],
-      "persisted":  [ { "method": "GET", "path": "/", "expectStatusBelow": 500 } ],
-      "persistenceNote": "Stateless tool; persistence check confirms the app restarts with its settings volume."
+      "env": { "SECURITY_ENABLELOGIN": "false", "SYSTEM_ENABLEANALYTICS": "false", "SYSTEM_ENABLEPOSTHOG": "false", "SYSTEM_ENABLESCARF": "false" },
+      "functional": [
+        { "method": "POST", "path": "/api/v1/general/rotate-pdf", "multipartPdf": "fileInput", "fields": { "angle": "90" }, "expectStatus": 200, "expectBodyPrefix": "%PDF", "retrySeconds": 30 },
+        { "method": "POST", "path": "/api/v1/misc/ocr-pdf", "multipartPdf": "fileInput", "fields": { "languages": "eng", "ocrType": "force-ocr", "ocrRenderType": "hocr" }, "expectStatus": 200, "expectBodyPrefix": "%PDF" },
+        { "method": "POST", "path": "/api/v1/security/auto-redact", "multipartPdf": "fileInput", "fields": { "listOfText": "4111", "useRegex": "false", "convertPDFToImage": "true" }, "expectStatus": 200, "expectBodyPrefix": "%PDF" }
+      ],
+      "persisted": [ { "method": "GET", "path": "/", "expectStatusBelow": 500 } ],
+      "persistenceNote": "Stateless tool; persistence check confirms the app restarts with its settings volume. Tested at 1 GB, POOF's memory cap on a Mac."
     },
     "actual-budget": {
       "port": 5006, "ready": "/", "readyMode": "lt500", "dataPath": "/data", "dataMB": 512, "memory": "1g",

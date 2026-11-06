@@ -49,8 +49,9 @@
    "source": "https://github.com/Stirling-Tools/Stirling-PDF",
    "provenance": {
     "cosignSignatureTag": true,
+    "signing": "cosign key held by the publisher (GitHub secret); public key not published; Rekor entries 3693000399, 3693000563",
     "buildkitAttestationManifests": 2,
-    "status": "signed (verify in CI)"
+    "status": "signed but unverifiable (no published public key) \u2014 treated as unsigned"
    }
   },
   "actual-budget": {
